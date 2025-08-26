@@ -27,7 +27,7 @@ declare(strict_types=1);
 namespace ChernegaSergiy\XAuthConnect\provider;
 
 use Closure;
-use pocketmine\plugin\Plugin;
+use pocketmine\plugin\PluginBase;
 use poggit\libasynql\libasynql;
 use poggit\libasynql\DataConnector;
 
@@ -35,7 +35,7 @@ class DatabaseProvider {
 
     private DataConnector $db;
 
-    public function __construct(Plugin $plugin) {
+    public function __construct(PluginBase $plugin) {
         $this->db = libasynql::create($plugin, $plugin->getConfig()->get("database"), [
             "sqlite" => "sql/sqlite.sql",
             "mysql" => "sql/mysql.sql"

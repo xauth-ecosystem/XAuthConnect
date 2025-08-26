@@ -44,7 +44,7 @@ class TokenProvider {
         $refreshToken = "xrt-" . bin2hex(random_bytes(64));
         $refreshTokenExpires = time() + (30 * 24 * 3600); // 30 days expiry for refresh token
 
-        $this->db->insertToken($accessToken, $username, $expires, $scopes, function() use ($accessToken, $refreshToken, $username, $refreshTokenExpires, $scopes, $onSuccess) {
+        $this->db->insertToken($accessToken, $username, $expires, $scopes, function() use ($accessToken, $refreshToken, $username, $refreshTokenExpires, $scopes, $onSuccess, $expires) {
             // Only create refresh token if access token insertion was successful
             $this->db->insertRefreshToken($refreshToken, $username, $refreshTokenExpires, $scopes, function() use ($accessToken, $refreshToken, $expires, $onSuccess) {
                 $onSuccess($accessToken, $refreshToken, $expires); // Pass access, refresh, and expiry

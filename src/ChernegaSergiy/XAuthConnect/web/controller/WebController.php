@@ -59,7 +59,8 @@ class WebController {
         if ($redirectUri === null) {
             // If redirect_uri is missing or invalid, we cannot redirect.
             // Display a generic error to the user directly.
-            $res->status(400)->text("Error: " . $error . " - " . $errorDescription);
+            $res->setStatus(400);
+$res->text("Error: " . $error . " - " . $errorDescription);
             return;
         }
 
@@ -69,12 +70,15 @@ class WebController {
             "state" => $state
         ]);
         $location = $redirectUri . (strpos($redirectUri, '?') === false ? '?' : '&') . $query;
-        $res->status(302)->headers(["Location" => $location])->end();
+        $res->setStatus(302);
+        $res->getHeaders()->setHeader("Location", $location);
+        $res->end();
     }
 
     private function checkRateLimit(string $clientId, HttpResponse $res): bool {
         if ($this->rateLimitProvider->isRateLimited($clientId)) {
-            $res->status(429)->text("Too Many Requests");
+            $res->setStatus(429);
+            $res->text("Too Many Requests");
             return true;
         }
         $this->rateLimitProvider->recordRequest($clientId);
@@ -82,7 +86,7 @@ class WebController {
     }
 
     public function handleAuthorize(HttpRequest $req, HttpResponse $res): void {
-        $params = $req->getQueryParams();
+        parse_str($req->getURL()->getQuery(), $params);
         $clientId = $params["client_id"] ?? null;
         $codeChallenge = $params["code_challenge"] ?? null;
         $codeChallengeMethod = $params["code_challenge_method"] ?? null;
@@ -97,7 +101,8 @@ class WebController {
 
         if ($client === null || !$this->clientProvider->isClientValid($clientId, $redirectUri)) {
             // If redirect_uri is invalid, we cannot redirect. Display error directly.
-            $res->status(400)->json(["error" => "invalid_client", "error_description" => "Invalid client_id or redirect_uri"]);
+            $res->setStatus(400);
+            $res->json(["error" => "invalid_client", "error_description" => "Invalid client_id or redirect_uri"]);
             return;
         }
 
@@ -129,11 +134,11 @@ class WebController {
         $params["state"] = $state; // Pass state to login page
 
         $html = $this->view->renderLoginPage($params, $client['name'] ?? 'Application');
-        $res->html($html);
+        $res->send($html);
     }
 
     public function handleLogin(HttpRequest $req, HttpResponse $res): void {
-        $postParams = $req->getParsedBody();
+        parse_str($req->getBody(), $postParams);
         $clientId = $postParams['client_id'] ?? null;
         $codeChallenge = $postParams["code_challenge"] ?? null;
         $codeChallengeMethod = $postParams["code_challenge_method"] ?? null;
@@ -151,7 +156,8 @@ class WebController {
         if (empty($playerData)) {
             $client = $this->clientProvider->getClient($clientId);
             $html = $this->view->renderLoginPage($postParams, $client['name'] ?? 'Application', "Invalid username or password.");
-            $res->status(401)->html($html);
+            $res->setStatus(401);
+            $res->send($html);
             return;
         }
 
@@ -169,15 +175,17 @@ class WebController {
         ];
         $query = http_build_query($consentParams);
         $location = $this->baseUrl . "/xauth/consent?" . $query;
-        $res->status(302)->headers(["Location" => $location])->end();
+        $res->setStatus(302);
+        $res->getHeaders()->setHeader("Location", $location);
+        $res->end();
     }
 
     public function handleConsent(HttpRequest $req, HttpResponse $res): void {
-        $params = $req->getQueryParams(); // For GET request
-        $postParams = $req->getParsedBody(); // For POST request
+        parse_str($req->getURL()->getQuery(), $params); // For GET request
+        parse_str($req->getBody(), $postParams); // For POST request
 
         // Use parameters from GET or POST depending on the request method
-        $requestParams = $req->getMethod() === "GET" ? $params : $postParams;
+        $requestParams = $req->getMethod()->value === "GET" ? $params : $postParams;
 
         $clientId = $requestParams["client_id"] ?? null;
         $redirectUri = $requestParams["redirect_uri"] ?? null;
@@ -189,7 +197,8 @@ class WebController {
 
         // Basic validation (more robust validation should happen earlier in handleAuthorize)
         if ($clientId === null || $redirectUri === null || $username === null) {
-            $res->status(400)->json(["error" => "invalid_request", "error_description" => "Missing required parameters for consent."]);
+            $res->setStatus(400);
+            $res->json(["error" => "invalid_request", "error_description" => "Missing required parameters for consent."]);
             return;
         }
 
@@ -210,18 +219,20 @@ class WebController {
             }
         }
 
-        if ($req->getMethod() === "GET") {
+        if ($req->getMethod()->value === "GET") {
             // Display consent page
             $html = $this->view->renderConsentPage($requestParams, $client['name'] ?? 'Application', $requestedScopes);
-            $res->html($html);
-        } elseif ($req->getMethod() === "POST") {
+            $res->send($html);
+        } elseif ($req->getMethod()->value === "POST") {
             $consentAction = $postParams["consent_action"] ?? null;
 
             if ($consentAction === "approve") {
                 // User approved, generate authorization code and redirect
                 $this->codeProvider->createCode($clientId, $username, $requestedScopes, $codeChallenge, $codeChallengeMethod, $state, function(string $authCode) use ($res, $redirectUri, $state) {
                     $location = $redirectUri . "?code=" . $authCode . ($state ? "&state=" . $state : "");
-                    $res->status(302)->headers(["Location" => $location])->end();
+                    $res->setStatus(302);
+                    $res->getHeaders()->setHeader("Location", $location);
+                    $res->end();
                 });
             } elseif ($consentAction === "deny") {
                 // User denied, redirect with access_denied error
@@ -234,7 +245,7 @@ class WebController {
     }
 
     public function handleToken(HttpRequest $req, HttpResponse $res): void {
-        $params = $req->getParsedBody();
+        parse_str($req->getBody(), $params);
         $clientId = $params["client_id"] ?? null;
 
         if ($clientId === null || $this->checkRateLimit($clientId, $res)) {
@@ -247,21 +258,24 @@ class WebController {
         $state = $params["state"] ?? null; // Extract state for validation
 
         if (!$this->clientProvider->isClientValid($clientId, null, $clientSecret)) {
-            $res->status(400)->json(["error" => "invalid_client"]);
+            $res->setStatus(400);
+            $res->json(["error" => "invalid_client"]);
             return;
         }
 
         // Pass codeVerifier and state to validateCode for PKCE and state validation
         $this->codeProvider->validateCode($code, $clientId, $codeVerifier, $state, function(?array $codeData) use ($res, $state) {
             if ($codeData === null) {
-                $res->status(400)->json(["error" => "invalid_grant", "error_description" => "Invalid or expired authorization code, or PKCE/state validation failed."]);
+                $res->setStatus(400);
+                $res->json(["error" => "invalid_grant", "error_description" => "Invalid or expired authorization code, or PKCE/state validation failed."]);
                 return;
             }
 
             // Additional state validation (though CodeProvider already checks if expectedState is provided)
             // This check ensures that the state returned by CodeProvider matches the state sent in the token request.
             if (($state !== null) && ($codeData['state'] !== $state)) {
-                $res->status(400)->json(["error" => "invalid_grant", "error_description" => "State mismatch."]);
+                $res->setStatus(400);
+                $res->json(["error" => "invalid_grant", "error_description" => "State mismatch."]);
                 return;
             }
 
@@ -274,14 +288,16 @@ class WebController {
     public function handleUser(HttpRequest $req, HttpResponse $res): void {
         $authHeader = $req->getHeaders()->getHeader("Authorization");
         if ($authHeader === null || !str_starts_with($authHeader, "Bearer ")) {
-            $res->status(401)->json(["error" => "invalid_token", "error_description" => "Authorization header missing or invalid"]);
+            $res->setStatus(401);
+            $res->json(["error" => "invalid_token", "error_description" => "Authorization header missing or invalid"]);
             return;
         }
 
         $token = substr($authHeader, 7);
         $this->tokenProvider->validateToken($token, function(?array $tokenData) use ($res) {
             if ($tokenData === null) {
-                $res->status(401)->json(["error" => "invalid_token", "error_description" => "Invalid or expired token"]);
+                $res->setStatus(401);
+                $res->json(["error" => "invalid_token", "error_description" => "Invalid or expired token"]);
                 return;
             }
 
@@ -291,7 +307,7 @@ class WebController {
     }
 
     public function handleRefreshToken(HttpRequest $req, HttpResponse $res): void {
-        $params = $req->getParsedBody();
+        parse_str($req->getBody(), $params);
         $clientId = $params["client_id"] ?? null;
 
         if ($clientId === null || $this->checkRateLimit($clientId, $res)) {
@@ -302,13 +318,15 @@ class WebController {
         $refreshToken = $params["refresh_token"] ?? null;
 
         if (!$this->clientProvider->isClientValid($clientId, null, $clientSecret)) {
-            $res->status(400)->json(["error" => "invalid_client"]);
+            $res->setStatus(400);
+            $res->json(["error" => "invalid_client"]);
             return;
         }
 
-        $this->tokenProvider->validateRefreshToken($refreshToken, function(?array $tokenData) use ($res, $clientId) {
+        $this->tokenProvider->validateRefreshToken($refreshToken, function(?array $tokenData) use ($res, $clientId, $refreshToken) {
             if ($tokenData === null) {
-                $res->status(400)->json(["error" => "invalid_grant"]);
+                $res->setStatus(400);
+                $res->json(["error" => "invalid_grant"]);
                 return;
             }
 
@@ -316,7 +334,8 @@ class WebController {
             // (This check is not directly in TokenProvider, so we do it here)
             // This requires client_id to be stored with refresh token, which it is.
             if ($tokenData['client_id'] !== $clientId) { // Assuming client_id is returned by validateRefreshToken
-                 $res->status(400)->json(["error" => "invalid_grant", "error_description" => "Refresh token not issued to this client"]);
+                 $res->setStatus(400);
+                 $res->json(["error" => "invalid_grant", "error_description" => "Refresh token not issued to this client"]);
                  return;
             }
 
@@ -336,7 +355,7 @@ class WebController {
     }
 
     public function handleIntrospectToken(HttpRequest $req, HttpResponse $res): void {
-        $params = $req->getParsedBody();
+        parse_str($req->getBody(), $params);
         $token = $params["token"] ?? null;
         $tokenTypeHint = $params["token_type_hint"] ?? null; // access_token or refresh_token
 
@@ -344,12 +363,14 @@ class WebController {
         $clientId = $params["client_id"] ?? null;
         $clientSecret = $params["client_secret"] ?? null;
         if ($clientId === null || !$this->clientProvider->isClientValid($clientId, null, $clientSecret)) {
-            $res->status(401)->json(["error" => "invalid_client", "active" => false]); // OAuth 2.0 spec says return active:false for invalid client
+            $res->setStatus(401);
+            $res->json(["error" => "invalid_client", "active" => false]); // OAuth 2.0 spec says return active:false for invalid client
             return;
         }
 
         if ($token === null) {
-            $res->status(400)->json(["error" => "invalid_request"]);
+            $res->setStatus(400);
+            $res->json(["error" => "invalid_request"]);
             return;
         }
 
@@ -357,6 +378,7 @@ class WebController {
         if ($tokenTypeHint === 'access_token' || $tokenTypeHint === null) {
             $this->tokenProvider->validateToken($token, function(?array $tokenData) use ($res) {
                 if ($tokenData === null) {
+                    $res->setStatus(401);
                     $res->json(["error" => "invalid_token", "active" => false]);
                     return;
                 }
@@ -375,6 +397,7 @@ class WebController {
         if ($tokenTypeHint === 'refresh_token') {
             $this->tokenProvider->validateRefreshToken($token, function(?array $tokenData) use ($res) {
                 if ($tokenData === null) {
+                    $res->setStatus(401);
                     $res->json(["error" => "invalid_token", "active" => false]);
                     return;
                 }
@@ -389,11 +412,12 @@ class WebController {
             return;
         }
 
-        $res->status(400)->json(["error" => "unsupported_token_type"]);
+        $res->setStatus(400);
+        $res->json(["error" => "unsupported_token_type"]);
     }
 
     public function handleRevokeToken(HttpRequest $req, HttpResponse $res): void {
-        $params = $req->getParsedBody();
+        parse_str($req->getBody(), $params);
         $token = $params["token"] ?? null;
         $tokenTypeHint = $params["token_type_hint"] ?? null; // access_token or refresh_token
 
@@ -401,20 +425,24 @@ class WebController {
         $clientId = $params["client_id"] ?? null;
         $clientSecret = $params["client_secret"] ?? null;
         if ($clientId === null || !$this->clientProvider->isClientValid($clientId, null, $clientSecret)) {
-            $res->status(401)->json(["error" => "invalid_client", "error_description" => "Unauthorized"]);
+            $res->setStatus(401);
+            $res->json(["error" => "invalid_client", "error_description" => "Unauthorized"]);
             return;
         }
 
         if ($token === null) {
-            $res->status(400)->json(["error" => "invalid_request"]);
+            $res->setStatus(400);
+            $res->json(["error" => "invalid_request"]);
             return;
         }
 
         $this->tokenProvider->revokeToken($token, function($success) use ($res) {
             if ($success) {
-                $res->status(200)->end(); // Success, even if token didn't exist
+                $res->setStatus(200);
+                $res->end(); // Success, even if token didn't exist
             } else {
-                $res->status(500)->json(["error" => "server_error", "error_description" => "Internal Server Error"]); // Should not happen if logic is correct
+                $res->setStatus(500);
+                $res->json(["error" => "server_error", "error_description" => "Internal Server Error"]); // Should not happen if logic is correct
             }
         });
     }

@@ -45,7 +45,7 @@ class CodeProvider {
     }
 
     public function validateCode(string $code, string $clientId, string $codeVerifier, ?string $expectedState, Closure $onSuccess): void {
-        $this->db->fetchCode($code, function(array $rows) use ($clientId, $codeVerifier, $expectedState, $onSuccess) {
+        $this->db->fetchCode($code, function(array $rows) use ($code, $clientId, $codeVerifier, $expectedState, $onSuccess) {
             if (empty($rows)) {
                 $onSuccess(null);
                 return;

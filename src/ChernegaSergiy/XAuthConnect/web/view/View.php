@@ -30,11 +30,10 @@ use pocketmine\plugin\Plugin;
 
 class View {
 
-    private Plugin $plugin;
+    
     private string $dataPath;
 
     public function __construct(Plugin $plugin) {
-        $this->plugin = $plugin;
         $this->dataPath = $plugin->getDataFolder() . "web/";
     }
 
