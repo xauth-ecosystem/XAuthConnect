@@ -1,0 +1,6 @@
+name: XAuthConnect
+version: 0.1.0
+main: ChernegaSergiy\XAuthConnect\Main
+api: 5.0.0
+author: ChernegaSergiy
+depend: [XAuth]

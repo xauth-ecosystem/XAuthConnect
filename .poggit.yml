@@ -1,0 +1,11 @@
+---
+branches:
+  - main
+projects:
+  XAuthConnect:
+    path: ""
+    libs:
+      - src: Hebbinkpro/pmmp-webserver/pmmp-webserver
+        version: ^0.5.0
+      - src: poggit/libasynql/libasynql
+        version: ^4.0
