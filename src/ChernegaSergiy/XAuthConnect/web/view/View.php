@@ -85,7 +85,7 @@ class View {
         $consentPage = str_replace("{{oauth_params}}", $hiddenFields, $consentPage);
         $consentPage = str_replace("{{client_name}}", htmlspecialchars($clientName), $consentPage);
         $consentPage = str_replace("{{scopes_list}}", $scopesListHtml, $consentPage);
-        $consentPage = str_replace("{{username}}", htmlspecialchars($oauthParams["username"] ?? ""), "username" to template
+        $consentPage = str_replace("{{username}}", htmlspecialchars($oauthParams["username"] ?? ""), $consentPage);
 
         return $consentPage;
     }
