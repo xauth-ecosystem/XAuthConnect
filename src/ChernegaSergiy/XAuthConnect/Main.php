@@ -23,6 +23,7 @@ spl_autoload_register(function ($class) {
 
 use ChernegaSergiy\AsyncHttp\Server\HttpServer;
 use ChernegaSergiy\AsyncHttp\Server\Router;
+use ChernegaSergiy\XAuthConnect\Pkce\CodeChallengeManager;
 use ChernegaSergiy\XAuthConnect\ScopeProvider\ScopeProviderInterface;
 use ChernegaSergiy\XAuthConnect\ScopeProvider\ProfileScopeProvider;
 use ChernegaSergiy\XAuthConnect\Service\IdTokenService;
@@ -78,6 +79,8 @@ class Main extends PluginBase
             return;
         }
 
+        $codeChallengeManager = new CodeChallengeManager();
+
         $this->webController = new WebController(
             $this->store,
             $this->getConfig(),
@@ -87,7 +90,8 @@ class Main extends PluginBase
             $this->getDataFolder(),
             $this->getScheduler(),
             $this->getServer(),
-            $this->scopeProviders
+            $this->scopeProviders,
+            $codeChallengeManager
         );
 
         $port = (int)$this->getConfig()->getNested("web-integration.server-port", 8081);

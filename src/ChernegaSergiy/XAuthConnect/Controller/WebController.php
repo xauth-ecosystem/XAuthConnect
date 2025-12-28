@@ -10,6 +10,7 @@ use ChernegaSergiy\AsyncHttp\Util\HttpStatus;
 use ChernegaSergiy\XAuthConnect\Service\IdTokenService;
 use ChernegaSergiy\XAuthConnect\Service\KeyService;
 use ChernegaSergiy\XAuthConnect\Storage\InMemoryStore;
+use ChernegaSergiy\XAuthConnect\Pkce\CodeChallengeManager;
 use pocketmine\plugin\PluginLogger;
 use pocketmine\scheduler\ClosureTask;
 use pocketmine\scheduler\TaskScheduler;
@@ -33,6 +34,7 @@ class WebController
     private TaskScheduler $scheduler;
     private Server $server;
     private array $scopeProviders;
+    private CodeChallengeManager $codeChallengeManager;
 
     public function __construct(
         InMemoryStore $store,
@@ -43,7 +45,8 @@ class WebController
         string $dataFolder,
         TaskScheduler $scheduler,
         Server $server,
-        array & $scopeProviders
+        array & $scopeProviders,
+        CodeChallengeManager $codeChallengeManager
     ) {
         $this->store = $store;
         $this->config = $config;
@@ -54,6 +57,7 @@ class WebController
         $this->scheduler = $scheduler;
         $this->server = $server;
         $this->scopeProviders = & $scopeProviders;
+        $this->codeChallengeManager = $codeChallengeManager;
     }
 
     public function handleDiscovery(Request $request, Response $response): void
@@ -138,7 +142,7 @@ class WebController
             return;
         }
 
-        if (!in_array($codeChallengeMethod, ["S256", "plain"])) {
+        if (!$this->codeChallengeManager->isMethodSupported($codeChallengeMethod)) {
             $errorRedirectUri = $redirectUri . (str_contains($redirectUri, '?') ? '&' : '?') . "error=invalid_request" . ($state !== null ? "&state=" . urlencode($state) : "");
             $response->setStatus(HttpStatus::FOUND)->setHeader("Location", $errorRedirectUri)->send('');
             return;
@@ -332,7 +336,7 @@ class WebController
             }
         }
 
-        if (!in_array($codeChallengeMethod, ["S256", "plain"])) {
+        if (!$this->codeChallengeManager->isMethodSupported($codeChallengeMethod)) {
             $errorRedirectUri = $redirectUri . (str_contains($redirectUri, '?') ? '&' : '?') . "error=invalid_request" . ($state !== null ? "&state=" . urlencode($state) : "");
             $response->setStatus(HttpStatus::FOUND)->setHeader("Location", $errorRedirectUri)->send('');
             return;
@@ -442,7 +446,7 @@ class WebController
             }
         }
 
-        if (!in_array($codeChallengeMethod, ["S256", "plain"])) {
+        if (!$this->codeChallengeManager->isMethodSupported($codeChallengeMethod)) {
             $errorRedirectUri = $redirectUri . (str_contains($redirectUri, '?') ? '&' : '?') . "error=invalid_request" . ($state !== null ? "&state=" . urlencode($state) : "");
             $response->setStatus(HttpStatus::FOUND)->setHeader("Location", $errorRedirectUri)->send('');
             return;
@@ -529,7 +533,7 @@ class WebController
                 return;
             }
 
-            if (!self::validateCodeChallenge($codeVerifier, $authCodeData["code_challenge"], $authCodeData["code_challenge_method"])) {
+            if (!$this->codeChallengeManager->validate($codeVerifier, $authCodeData["code_challenge"], $authCodeData["code_challenge_method"])) {
                 $response->json(["error" => "invalid_grant", "error_description" => "PKCE code_verifier mismatch."]);
                 return;
             }
@@ -871,17 +875,5 @@ class WebController
 
         $server->getLogger()->info("[XAuthConnect-Debug] Final userData: " . json_encode($userData));
         return $userData;
-    }
-
-    private static function validateCodeChallenge(string $codeVerifier, string $codeChallenge, string $codeChallengeMethod): bool
-    {
-        if ($codeChallengeMethod === "plain") {
-            return $codeVerifier === $codeChallenge;
-        } elseif ($codeChallengeMethod === "S256") {
-            $hashedVerifier = hash('sha256', $codeVerifier, true);
-            $base64UrlEncodedHashedVerifier = rtrim(strtr(base64_encode($hashedVerifier), '+/', '-_'), '=');
-            return $base64UrlEncodedHashedVerifier === $codeChallenge;
-        }
-        return false;
     }
 }
