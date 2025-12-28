@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Required</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f5f5f5;
+        }
+        .hidden {
+            display: none !important;
+        }
+        #waiting-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <main id="main-content" class="form-signin w-100 m-auto" style="max-width: 400px; padding: 15px;">
+        <div id="login-container">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h1 class="h3 mb-3 fw-normal text-center">Authorize "{{client_name}}"</h1>
+                    <p class="text-center text-body-secondary">Please log in to your server account to continue.</p>
+                    
+                    {{error_message}}
+
+                    <form id="login-form" action="/xauth/login" method="post">
+                        {{oauth_params}}
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="username" name="username" placeholder="Username" required>
+                            <label for="username">Username</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                            <label for="password">Password</label>
+                        </div>
+                        <button class="btn btn-primary w-100 py-2" type="submit">Sign in & Authorize</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="waiting-container" class="d-flex align-items-center justify-content-center hidden">
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Verifying your credentials, please wait...</p>
+        </div>
+    </div>
+
+    <script>
+        const mainContent = document.getElementById('main-content');
+        const waitingContainer = document.getElementById('waiting-container');
+
+        document.getElementById('login-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            mainContent.classList.add('hidden');
+            waitingContainer.classList.remove('hidden');
+
+            const formData = new URLSearchParams(new FormData(this));
+
+            fetch('/xauth/login', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.request_id) {
+                    pollLoginStatus(data.request_id);
+                } else {
+                    // Reload the page with an error
+                    const currentUrl = new URL(window.location.href);
+                    currentUrl.searchParams.set('error', 'login_failed');
+                    window.location.href = currentUrl.href;
+                }
+            })
+            .catch(error => {
+                console.error('Login request failed:', error);
+                mainContent.classList.remove('hidden');
+                waitingContainer.classList.add('hidden');
+                alert('An error occurred during login. Please try again.');
+            });
+        });
+
+        function pollLoginStatus(requestId) {
+            const interval = setInterval(() => {
+                fetch(`/xauth/login-status?request_id=${requestId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status !== 'pending') {
+                            clearInterval(interval);
+                            if (data.redirect_url) {
+                                window.location.href = data.redirect_url;
+                            } else {
+                                // Handle cases where redirect_url is missing
+                                waitingContainer.innerHTML = '<h1>Error</h1><p>Login process did not complete successfully. Please try again.</p>';
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        clearInterval(interval);
+                        console.error('Polling failed:', error);
+                        mainContent.classList.remove('hidden');
+                        waitingContainer.classList.add('hidden');
+                        alert('An error occurred while checking login status. Please try again.');
+                    });
+            }, 2000);
+        }
+    </script>
+
+</body>
+</html>

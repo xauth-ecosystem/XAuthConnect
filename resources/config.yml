@@ -1,53 +1,28 @@
-# Default configuration for XAuthConnect
-
 web-integration:
-  enabled: true
-  # The port for the web server to listen on.
-  # Make sure this port is not used by another application and is open.
-  server-port: 8010
-  # The base URL of your server, used for constructing redirect URIs.
-  # Example: "https://mc.yourdomain.com"
-  base-url: "http://127.0.0.1:8010"
-  # Timeout in seconds for how long an authorization code is valid.
-  code-timeout: 300 # 5 minutes
-
-  # SSL/TLS configuration
+  server-port: 8081
+  code-timeout: 300 # seconds
   ssl:
-    # The folder inside your plugin's data directory containing the SSL certificates.
-    # The library will look for .cert and .pem files here.
-    cert-folder: "cert"
-    # The passphrase for your private key, if it is encrypted.
-    passphrase: null
+    enabled: false
+    # path to certificate file, e.g. /path/to/your/fullchain.pem
+    cert-path: ""
+    # path to private key file, e.g. /path/to/your/privkey.pem (leave empty if bundled with the cert)
+    key-path: ""
 
-  # Configuration for registered OAuth2-like clients (websites, bots, etc.)
-  registered-clients:
-    forum:
-      client-id: "forum_client_123"
-      client-secret: "super_secret_key"
-      name: "Community Forum"
-      redirect-uris:
-        - "https://forum.example.com/auth/callback"
-      allowed-scopes:
-        - "profile:nickname"
-        - "profile:uuid"
-        - "profile:registration_date"
-      # Rate limiting for this specific client.
-      rate-limits:
-        requests-per-minute: 60
+  registered-clients: []
+    # Example client:
+    # - name: "My Awesome App"
+    #   client-id: "my-client-id"
+    #   client-secret: "my-super-secret-client-secret"
+    #   redirect-uris:
+    #     - "https://my-app.com/callback"
+    #   allowed-scopes:
+    #     - "profile:nickname"
+    #     - "profile:uuid"
 
-database:
-  # The type of database to use. Can be "sqlite" or "mysql".
-  type: "sqlite"
-  # The number of threads for processing database queries.
-  worker-limit: 1
-  sqlite:
-    # The database file name, located in the plugin's data folder.
-    file: "data.sqlite"
-
-  # Example for MySQL. To use, set type to "mysql" and fill in your details.
-  #mysql:
-  #  host: "127.0.0.1"
-  #  user: "xauth_user"
-  #  password: "your_strong_password" # Change this!
-  #  database: "xauth_connect"
-  #  port: 3306
+oidc:
+  # The URL of your server, which will be used as the 'issuer' (iss) in ID tokens.
+  # For example: "https://auth.your-server.com"
+  issuer_url: "http://127.0.0.1:8081"
+  # Path to the private key file. If left empty, the key will be generated automatically.
+  # The path is relative to the plugin's data folder.
+  private_key_path: "private.key"

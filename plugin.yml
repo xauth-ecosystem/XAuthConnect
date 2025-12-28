@@ -1,5 +1,5 @@
 name: XAuthConnect
-version: 0.1.0
+version: 0.0.2
 main: ChernegaSergiy\XAuthConnect\Main
 api: 5.0.0
 author: ChernegaSergiy
