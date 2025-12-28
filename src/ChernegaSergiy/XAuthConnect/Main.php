@@ -23,6 +23,7 @@ spl_autoload_register(function ($class) {
 
 use ChernegaSergiy\AsyncHttp\Server\HttpServer;
 use ChernegaSergiy\AsyncHttp\Server\Router;
+use ChernegaSergiy\XAuthConnect\Controller\WebController;
 use ChernegaSergiy\XAuthConnect\Pkce\CodeChallengeManager;
 use ChernegaSergiy\XAuthConnect\ScopeProvider\ScopeProviderInterface;
 use ChernegaSergiy\XAuthConnect\ScopeProvider\ProfileScopeProvider;
