@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace ChernegaSergiy\XAuthConnect\ScopeProvider;
 
-use ChernegaSergiy\XAuthConnect\ScopeProvider;
+use ChernegaSergiy\XAuthConnect\ScopeProvider\ScopeProviderInterface;
 use pocketmine\Server;
 use pmmp\thread\ThreadSafe;
 
-class ProfileScopeProvider extends ThreadSafe implements ScopeProvider
+class ProfileScopeProvider extends ThreadSafe implements ScopeProviderInterface
 {
     public function getProvidedScopes(): array
     {
